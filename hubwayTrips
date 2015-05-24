@@ -1,0 +1,40 @@
+hubway <- read.csv("hubwayTrips.csv")
+str(hubway)
+
+## Average Duration of trips in seconds, and trips taken during the week ( == 1) & during the weekends( == 0)
+
+mean(hubway$Duration)
+mean(hubway$Duration[ hubway$Weekday == 0])
+mean(hubway$Duration[ hubway$Weekday == 0])
+
+## Trips taken in the morning, afternoon, evening
+
+table(hubway$Morning)
+table(hubway$Afternoon)
+table(hubway$Evening)
+
+## prop of trips taken by male users
+
+nrow(hubway[hubway$Male == 1, ]) / nrow(hubway)
+
+## Normalize the dataset
+
+library(caret)
+preproc = preProcess(hubway)
+HubwayNorm = predict(preproc, hubway)
+summary(HubwayNorm)
+
+## Run the k-means algorithm 
+
+set.seed(5000)
+k.clust <- kmeans(HubwayNorm, centers = 10)
+
+k.clust$centers
+k.clust$size
+
+## Second round, with 20 centroids
+set.seed(8000)
+k.clust.2 <- kmeans(HubwayNorm, centers = 20)
+k.clust.2$centers
+k.clust.2$size
+
