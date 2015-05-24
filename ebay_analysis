@@ -1,0 +1,160 @@
+ebay <- read.csv("ebay.csv", stringsAsFactors = F)
+str(ebay)
+
+
+nrow(ebay[ebay$sold ==1, ]) / nrow(ebay)
+
+summary(ebay)
+
+table(ebay$size)
+
+ebay$sold <- as.factor(ebay$sold)
+ebay$condition <- as.factor(ebay$condition)
+ebay$heel <- as.factor(ebay$heel)
+ebay$style <- as.factor(ebay$style)
+ebay$color <- as.factor(ebay$color)
+ebay$material <- as.factor(ebay$material)
+
+
+set.seed(144)
+
+library(caTools)
+
+spl = sample.split(ebay$sold, 0.7)
+
+ebay_train <- ebay[spl ==  T ,]
+ebay_test <- ebay[spl == F ,]
+
+log1 <- glm(sold ~ biddable + startprice + condition + heel + style + color + material , data = ebay_train, family = 'binomial') 
+summary(log1)
+
+0.5990788 + 100*-0.0044423 - 0.4952981 + 0.1224260 + 0.2226547 - 1.1078098
+
+
+## Predicted prob of being sold of an stiletto
+
+exp(0.8325406) ##stiletto coef (log(odds))
+stiletto_odds <- 2.299153 - 1.0
+
+ts_predictions <- predict(log1, ebay_test, type = 'response')
+
+table(ebay_test$sold, ts_predictions >= .5  )
+
+## naive approach is to predict non sold for 2815 test set obs. 
+
+
+
+## Computing AUC
+
+install.packages("ROCR")
+library(ROCR)
+ROCRpred = prediction(ts_predictions, ebay_test$sold)
+AUC = as.numeric(performance(ROCRpred, 'auc')@y.values)
+AUC
+perf = performance(ROCRpred, "tpr", "fpr")
+plot(perf, colorize = T)
+
+install.packages("caret")
+library(caret)
+
+set.seed(144)
+cpGrid <- expand.grid(.cp=seq(0.001,0.5,0.01))
+
+fitControl <- trainControl(method = "repeatedcv",
+                           ## 10-fold CV...
+                           number = 10,
+                           ## repeated ten times
+                           repeats = 10)
+  
+trainer <- train(sold ~ biddable + startprice + condition + heel + style + color + material , data = ebay_train, method = 'rpart',trControl = fitControl, tuneGrid = cpGrid)
+summary(trainer)
+install.packages("rpart.plot")
+library(rpart.plot)
+best.tree = trainer$finalModel
+prp(best.tree)
+best.tree
+
+
+## 3rd part text analytics, corpus and dtm
+
+library(tm)
+library(SnowballC)
+
+corpus = Corpus(VectorSource(ebay$description))
+corpus <- tm_map(corpus, tolower)
+
+corpus <- tm_map(corpus, removePunctuation)
+
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+
+corpus = tm_map(corpus, PlainTextDocument)
+
+corpus <- tm_map(corpus, stemDocument)
+
+dtm = DocumentTermMatrix(corpus)
+
+summary(dtm)
+dtm
+spdtm <- removeSparseTerms(dtm, sparse = .90)
+spdtm
+
+descriptionText <- as.data.frame(as.matrix(spdtm))
+
+## highest word frequency
+
+which.max(colSums(descriptionText))
+
+names(descriptionText) = paste0("D", names(descriptionText))
+
+descriptionText$sold <- ebay$sold
+descriptionText$biddable <- ebay$biddable
+descriptionText$startprice <- ebay$startprice
+descriptionText$condition <- ebay$condition
+descriptionText$heel <- ebay$heel
+descriptionText$style <- ebay$style
+descriptionText$color <- ebay$color
+descriptionText$material <- ebay$material
+
+trainText <- descriptionText[spl == T,]
+testText <- descriptionText[spl == F,]
+str(testText)
+
+
+
+## glm on training set
+
+logReg2 <- glm(sold ~ . , data = trainText, family = 'binomial')
+summary(logReg2)
+
+
+train.pred <- predict(logReg2, trainText, type = 'response')
+
+
+test.pred = predict(logReg2, testText, type = 'response')
+
+rocr.pred.train <- prediction(train.pred, trainText$sold)
+rocr.pred.test <- prediction(test.pred, testText$sold)
+
+train_AUC = as.numeric(performance(rocr.pred.train , 'auc')@y.values)
+test_AUC = as.numeric(performance(rocr.pred.test , 'auc')@y.values)
+
+train_AUC
+test_AUC
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
