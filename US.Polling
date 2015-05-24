@@ -1,0 +1,87 @@
+polling <- read.csv('impute.csv', header=T)
+str(imputed)
+library(ggplot2)
+statesMap = map_data("state")
+head(statesMap)
+str(statesMap)
+table(statesMap$group)
+
+# US MAP
+US <- ggplot(statesMap, aes(x = long, y = lat, group = group)) + geom_polygon(fill = "white", color = "black")
+
+
+### sample split
+
+train = subset(polling, Year == 2004 | Year == 2008)
+test = subset(polling, Year == 2012)
+
+### glm model and prediction
+
+mod2 = glm(Republican~SurveyUSA+DiffCount, data=train, family="binomial")
+
+# Prediction for each state
+
+TestPrediction = predict(mod2, newdata=test, type="response")
+
+## binary predictor for republican or democrat
+
+TestPredictionBinary = as.numeric(TestPrediction > 0.5)  
+
+## Now, put the predictions and state labels in a data.frame so that we can use ggplot:
+  
+predictionDataFrame = data.frame(TestPrediction, TestPredictionBinary, test$State)
+
+## how many states with republican (1)
+
+nrow(predictionDataFrame[TestPredictionBinary == 1 , ])
+
+mean(predictionDataFrame$TestPrediction)
+
+## Now, we need to merge "predictionDataFrame" with the map data "statesMap",
+# like we did in lecture. Before doing so, we need to convert the Test.State variable 
+# to lowercase, so that it matches the region variable in statesMap. 
+
+predictionDataFrame$region = tolower(predictionDataFrame$test.State)
+
+## Now, merge the two data frames using the following command:
+  
+predictionMap = merge(statesMap, predictionDataFrame, by = "region")
+
+## Lastly, we need to make sure the observations are in order so that the map is drawn properly,
+  
+predictionMap = predictionMap[order(predictionMap$order),]
+
+str(predictionMap)
+str(statesMap)
+
+## Now we are ready to color the US map with our predictions! You can color the states according 
+## to our binary predictions by typing the following in your R console:
+  
+ggplot(predictionMap, aes(x = long, y = lat, group = group, fill = TestPredictionBinary)) + geom_polygon(color = "black")
+
+
+# We can also change the color scheme to blue and red, to match the blue color associated with the Democratic Party in the US and the red color associated with the Republican Party in the US. This can be done with the following command:
+  
+
+ggplot(predictionMap, aes(x = long, y = lat, group = group, fill = TestPredictionBinary))+ geom_polygon(color = "black") + scale_fill_gradient(low = "blue", high = "red", guide = "legend", breaks= c(0,1), labels = c("Democrat", "Republican"), name = "Prediction 2012")
+
+
+mean(predictionMap$TestPrediction[predictionMap$test.State=='Florida'])
+
+?geom_polygon
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
