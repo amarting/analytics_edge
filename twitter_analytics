@@ -1,0 +1,199 @@
+  
+# Read in the data
+
+tweets = read.csv("tweets.csv", stringsAsFactors=FALSE)
+
+str(tweets)
+
+
+# Create dependent variable
+
+tweets$Negative = as.factor(tweets$Avg <= -1)
+
+table(tweets$Negative)
+
+
+# Install new packages
+
+install.packages("tm")
+library(tm)
+install.packages("SnowballC")
+library(SnowballC)
+
+
+# Create corpus
+ 
+corpus = Corpus(VectorSource(tweets$Tweet))
+corpus = tm_map(corpus, PlainTextDocument)
+# Look at corpus
+corpus
+
+corpus[[1]]
+
+
+# Convert to lower-case
+
+corpus = tm_map(corpus, tolower)
+
+corpus[[1]]
+
+# IMPORTANT NOTE: If you are using the latest version of the tm package, you will need to run the following line before continuing (it converts corpus to a Plain Text Document). This is a recent change having to do with the tolower function that occurred after this video was recorded.
+
+corpus = tm_map(corpus, PlainTextDocument)
+
+
+# Remove punctuation
+
+corpus = tm_map(corpus, removePunctuation)
+
+corpus[[1]]
+
+# Look at stop words 
+stopwords("english")[1:20]
+
+# Remove stopwords and apple
+
+corpus = tm_map(corpus, removeWords, c("apple", stopwords("english")))
+
+corpus[[1]]
+
+# Stem document 
+
+corpus = tm_map(corpus, stemDocument)
+
+corpus[[1]]
+
+
+
+
+# Video 6
+
+# Create matrix
+
+frequencies = DocumentTermMatrix(corpus)
+
+------------ same for the test data
+
+# Create corpus
+
+corpus2 = Corpus(VectorSource(nyTest$Abstract))
+
+# Look at corpus
+
+corpus2 = tm_map(corpus2, tolower)
+
+
+
+# IMPORTANT NOTE: If you are using the latest version of the tm package, you will need to run the following line before continuing (it converts corpus to a Plain Text Document). This is a recent change having to do with the tolower function that occurred after this video was recorded.
+
+corpus2 = tm_map(corpus2, PlainTextDocument)
+
+
+# Remove punctuation
+
+corpus2 = tm_map(corpus2, removePunctuation)
+
+
+corpus2 = tm_map(corpus2, removeWords, stopwords("english"))
+# Stem document 
+
+corpus2 = tm_map(corpus2, stemDocument)
+
+# Video 6
+
+# Create matrix
+
+testFrequencies = DocumentTermMatrix(corpus)
+
+# Remove sparse terms
+
+test_sparse <- removeSparseTerms(testFrequencies, .995)
+
+
+
+
+
+
+
+
+
+----------------
+
+frequencies
+
+# Look at matrix 
+
+inspect(frequencies[1000:1005,505:515])
+
+# Check for sparsity
+
+findFreqTerms(frequencies, lowfreq=285)
+?removeSparseTerms
+sparse = removeSparseTerms(frequencies, sparse = 0.995)
+# Remove sparse terms
+sparse
+
+# Convert to a data frame
+
+tweetsSparse = as.data.frame(as.matrix(sparse))
+
+# Make all variable names R-friendly
+
+colnames(tweetsSparse) = make.names(colnames(tweetsSparse))
+
+# Add dependent variable
+
+# Split the data
+
+library(caTools)
+
+# Video 7
+
+# Build a CART model
+
+library(rpart)
+library(rpart.plot)
+
+nyTrainCART = rpart(Popular ~ ., data=nyTrain, method="class")
+
+prp(nyTrainCART)
+
+# Evaluate the performance of the model
+predictCART = predict(nyTrainCART, nyTest, type="class")
+
+table(testSparse$Negative, predictCART)
+
+# Compute accuracy
+
+(294+18)/(294+6+37+18)
+
+# Baseline accuracy 
+
+table(testSparse$Negative)
+
+300/(300+55)
+
+
+# Random forest model
+
+library(randomForest)
+set.seed(123)
+
+tweetRF = randomForest(Negative ~ ., data=trainSparse)
+
+# Make predictions:
+predictRF = predict(tweetRF, newdata=testSparse)
+
+table(testSparse$Negative, predictRF)
+
+# Accuracy:
+(293+21)/(293+7+34+21)
+
+tweetLog = glm(Negative ~ ., data= trainSparse, family = 'binomial')
+summary(tweetLog)
+
+predictions = predict(tweetLog, testSparse, type='response')
+table(testSparse$Negative, predictions >= 0.5)
+
+(33+253)/(33+253+22+47)
+##0.8056338
